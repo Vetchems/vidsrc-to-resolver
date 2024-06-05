@@ -2,6 +2,7 @@ import os
 import argparse
 import requests
 import questionary
+import re
 
 from bs4 import BeautifulSoup
 from urllib.parse import unquote
@@ -158,7 +159,8 @@ if __name__ == "__main__":
         elif args.default_subtitles:
             fetch_subtitles = True
         else:
-            fetch_subtitles = questionary.confirm("Fetch Subtitles").unsafe_ask()
+            # fetch_subtitles = questionary.confirm("Fetch Subtitles").unsafe_ask()
+            fetch_subtitles = True
 
     vse = VidSrcExtractor(
         source_name = source_name,
@@ -177,6 +179,8 @@ if __name__ == "__main__":
             select_media = questionary.select("Select Media", choices=list(search_results.keys())).unsafe_ask()
             media_data = search_results.get(select_media)
 
+            print(select_media)
+
             media_id = media_data.get("tmdb_id")
             media_type = media_data.get("media_type")
         else:
@@ -191,45 +195,178 @@ if __name__ == "__main__":
     se = args.season or questionary.text("Input Season Number").unsafe_ask() if media_type == "tv" else None
     ep = args.episode or questionary.text("Input Episode Number").unsafe_ask() if media_type == "tv" else None    
 
-    streams, subtitles, source_url = vse.get_streams(media_type, media_id, se, ep)
-    index, fetch_attempts = (SUPPORTED_SOURCES.index(vse.source_name), 0)
+    if ep == "all" and media_type == "tv":
+        total_episodes = int(questionary.text("Input total number of episodes in the season").unsafe_ask())
+        for episode_number in range(1, total_episodes + 1):
+            streams, subtitles, source_url = vse.get_streams(media_type, media_id, se, str(episode_number))
+            index, fetch_attempts = (SUPPORTED_SOURCES.index(vse.source_name), 0)
 
-    while not streams:
-        index += 1 # we want the first source after the current index
-        fetch_attempts += 1
+            while not streams:
+                index += 1 # we want the first source after the current index
+                fetch_attempts += 1
 
-        if (fetch_attempts > len(SUPPORTED_SOURCES)) and (not streams):
-            raise NoSourcesFound("Could not start media playback due to no sources being found.")
+                if (fetch_attempts > len(SUPPORTED_SOURCES)) and (not streams):
+                    raise NoSourcesFound("Could not start media playback due to no sources being found.")
+                
+                next_source = SUPPORTED_SOURCES[index % len(SUPPORTED_SOURCES)]
+
+                if questionary.confirm(f"Could not find sources for {vse.source_name}, would you like to try scraping {next_source}?").unsafe_ask():
+                    vse.source_name = next_source
+                    streams, subtitles = vse.get_streams(media_type, media_id, se, str(episode_number))
+            
+            stream = questionary.select("Select Stream", choices=streams).unsafe_ask() if len(streams) > 1 else streams[0]
+            mpv_cmd = f"mpv "
+            
+            if args.fullscreen:
+                mpv_cmd += "--fs "
+
+            if args.ffmpeg_errors:
+                mpv_cmd += "--msg-level=ffmpeg=no "
+
+            mpv_cmd += f"\"{stream}\" "
+
+            if subtitles:
+                subtitle_list = list(subtitles.keys())
+                subtitle_list.append("None")
+                selection = args.default_subtitles
+                
+                if not selection:
+                    print("[>] This can be skipped by passing --default-subtitles  DEFAULT_SUBTITLES")
+                    # selection = questionary.select("Select Subtitles", choices=subtitle_list).unsafe_ask()
+
+                if selection != "None":
+                    mpv_cmd += f"--sub-file=\"{subtitles.get(selection)}\" "
+
+            mpv_cmd += f"--http-header-fields=\"Referer: {source_url}\""
+            # print(mpv_cmd)
+            
+            # do_download = questionary.select("Download File?", choices=["Yes", "No"]).unsafe_ask().lower()
+            # if do_download == "yes":
+            # Define the regex pattern to match the number prefix and date
+            pattern = r"^\d+\.\s+(.+?)\s+\(\w+\s+\d{1,2},\s+(\d{4})\)$"
+
+            # Use re.sub to replace the matched patterns with an empty string
+            if query:
+                cleaned_text = re.sub(pattern, r'\1 (\2)', select_media).strip().replace(" ", ".").replace(":", "")
+            else:
+                cleaned_text = media_id
+
+            filename = f"{cleaned_text}.S{se}E{episode_number:02d}"
+
+            tv_dir = "TV"
+            os.makedirs(tv_dir, exist_ok=True)
+            series_dir = os.path.join(tv_dir, cleaned_text)
+            os.makedirs(series_dir, exist_ok=True)
+            season_dir = os.path.join(series_dir, f"S{se}")
+            os.makedirs(season_dir, exist_ok=True)
+
+            filepath = os.path.join(season_dir, filename)
+
+            os.system(f"yt-dlp {stream} -o {filepath}.mp4")
+            # if selection != "None":
+            #     response = requests.get(subtitles.get(selection))
+            #     with open(f"{filepath}.vtt", 'wb') as file:
+            #         file.write(response.content)
+
+            #     os.system(f"vtt_to_srt {filepath}.vtt")
+
+            print(f"[>] Downloaded {filepath}.mp4 and {filepath}.vtt")
+    else:
+        streams, subtitles, source_url = vse.get_streams(media_type, media_id, se, ep)
+        index, fetch_attempts = (SUPPORTED_SOURCES.index(vse.source_name), 0)
+
+        while not streams:
+            index += 1 # we want the first source after the current index
+            fetch_attempts += 1
+
+            if (fetch_attempts > len(SUPPORTED_SOURCES)) and (not streams):
+                raise NoSourcesFound("Could not start media playback due to no sources being found.")
+            
+            next_source = SUPPORTED_SOURCES[index % len(SUPPORTED_SOURCES)]
+
+            if questionary.confirm(f"Could not find sources for {vse.source_name}, would you like to try scraping {next_source}?").unsafe_ask():
+                vse.source_name = next_source
+                streams, subtitles = vse.get_streams(media_type, media_id, se, ep)
         
-        next_source = SUPPORTED_SOURCES[index % len(SUPPORTED_SOURCES)]
-
-        if questionary.confirm(f"Could not find sources for {vse.source_name}, would you like to try scraping {next_source}?").unsafe_ask():
-            vse.source_name = next_source
-            streams, subtitles = vse.get_streams(media_type, media_id, se, ep)
-    
-    stream = questionary.select("Select Stream", choices=streams).unsafe_ask() if len(streams) > 1 else streams[0]
-    mpv_cmd = f"mpv "
-    
-    if args.fullscreen:
-        mpv_cmd += "--fs "
-
-    if args.ffmpeg_errors:
-        mpv_cmd += "--msg-level=ffmpeg=no "
-
-    mpv_cmd += f"\"{stream}\" "
-
-    if subtitles:
-        subtitle_list = list(subtitles.keys())
-        subtitle_list.append("None")
-        selection = args.default_subtitles
+        stream = questionary.select("Select Stream", choices=streams).unsafe_ask() if len(streams) > 1 else streams[0]
+        mpv_cmd = f"mpv "
         
-        if not selection:
-            print("[>] This can be skipped by passing --default-subtitles  DEFAULT_SUBTITLES")
-            selection = questionary.select("Select Subtitles", choices=subtitle_list).unsafe_ask()
+        if args.fullscreen:
+            mpv_cmd += "--fs "
 
-        if selection != "None":
-            mpv_cmd += f"--sub-file=\"{subtitles.get(selection)}\" "
+        if args.ffmpeg_errors:
+            mpv_cmd += "--msg-level=ffmpeg=no "
 
-    mpv_cmd += f"--http-header-fields=\"Referer: {source_url}\""
-    print(mpv_cmd)
-    os.system(mpv_cmd)
+        mpv_cmd += f"\"{stream}\" "
+
+        if subtitles:
+            subtitle_list = list(subtitles.keys())
+            subtitle_list.append("None")
+            selection = args.default_subtitles
+            
+            if not selection:
+                print("[>] This can be skipped by passing --default-subtitles  DEFAULT_SUBTITLES")
+                selection = questionary.select("Select Subtitles", choices=subtitle_list).unsafe_ask()
+
+            if selection != "None":
+                mpv_cmd += f"--sub-file=\"{subtitles.get(selection)}\" "
+
+        mpv_cmd += f"--http-header-fields=\"Referer: {source_url}\""
+        # print(mpv_cmd)
+        
+        # do_download = questionary.select("Download File?", choices=["Yes", "No"]).unsafe_ask().lower()
+        # if do_download == "yes":
+        # Define the regex pattern to match the number prefix and date
+        pattern = r"^\d+\.\s+(.+?)\s+\(\w+\s+\d{1,2},\s+(\d{4})\)$"
+
+        # Use re.sub to replace the matched patterns with an empty string
+        if query:
+            cleaned_text = re.sub(pattern, r'\1 (\2)', select_media).strip().replace(" ", ".").replace(":", "")
+        else:
+            cleaned_text = media_id
+
+        if media_type == "movie":
+            movies_dir = "Movies"
+            os.makedirs(movies_dir, exist_ok=True)
+            movie_dir = os.path.join(movies_dir, cleaned_text)
+            os.makedirs(movie_dir, exist_ok=True)
+
+            filepath = os.path.join(movie_dir, cleaned_text)
+
+            os.system(f"yt-dlp {stream} -o {filepath}.mp4")
+            if selection != "None":
+                response = requests.get(subtitles.get(selection))
+                subs_dir = os.path.join(movie_dir, "Subs")
+                os.makedirs(subs_dir, exist_ok=True)
+                subpath = os.path.join(subs_dir, cleaned_text)
+                with open(f"{subpath}.vtt", 'wb') as file:
+                    file.write(response.content)
+
+                os.system(f"vtt_to_srt {subpath}.vtt")
+                if os.path.exists(f"{subpath}.vtt"): os.remove(f"{subpath}.vtt")
+
+            print(f"[>] Downloaded {filepath}.mp4 and {filepath}.vtt")
+        else:
+            tv_dir = "TV"
+            os.makedirs(tv_dir, exist_ok=True)
+            series_dir = os.path.join(tv_dir, cleaned_text)
+            os.makedirs(series_dir, exist_ok=True)
+            season_dir = os.path.join(series_dir, f"S{se}")
+            os.makedirs(season_dir, exist_ok=True)
+
+            filename = f"{cleaned_text}.S{se}E{ep}"
+            filepath = os.path.join(season_dir, filename)
+
+            os.system(f"yt-dlp {stream} -o {filepath}.mp4")
+            if selection != "None":
+                response = requests.get(subtitles.get(selection))
+                subs_dir = os.path.join(season_dir, "Subs")
+                os.makedirs(subs_dir, exist_ok=True)
+                subpath = os.path.join(subs_dir, filename)
+                with open(f"{subpath}.vtt", 'wb') as file:
+                    file.write(response.content)
+
+                os.system(f"vtt_to_srt {subpath}.vtt")
+                if os.path.exists(f"{subpath}.vtt"): os.remove(f"{subpath}.vtt")
+
+            print(f"[>] Downloaded {filepath}.mp4 and {filepath}.vtt")

@@ -4,3 +4,19 @@
 
 # Pycache
 __pycache__
+
+# mpv
+d3dcompiler_43.dll
+mpv.exe
+
+# Download Folders
+Movies
+TV
+
+# ffmpeg
+ffmpeg.exe
+ffplay.exe
+ffprobe.exe
+
+# yt-dlp
+yt-dlp.exe

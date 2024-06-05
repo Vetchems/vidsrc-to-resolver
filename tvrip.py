@@ -2,6 +2,8 @@ import os
 import argparse
 import requests
 import questionary
+import re
+import time
 
 from bs4 import BeautifulSoup
 from urllib.parse import unquote
@@ -96,69 +98,29 @@ class VidSrcExtractor:
             print(f"[VidSrcExtractor] Sorry, this doesnt currently support \"{self.source_name}\" :(\n[VidSrcExtractor] (if you create an issue and ask really nicely ill maybe look into reversing it though)...")
             return None, None, None
         
-    def query_tmdb(self, query: str) -> Dict:
-        req = requests.get(f"{VidSrcExtractor.TMDB_BASE_URL}/search", params={'query': query.replace(" ", "+").lower(),'language': 'en-US'}, headers={'user-agent': VidSrcExtractor.USER_AGENT})
-        soup = BeautifulSoup(req.text, "html.parser")
-        results = {}
-
-        for index, data in enumerate(soup.find_all("div", {"class": "details"}), start=1):
-            result = data.find("a", {"class": "result"})
-            title = result.find()
-
-            if not title:
-                continue
-
-            title = title.text
-            release_date = data.find("span", {"class": "release_date"})
-            release_date = release_date.text if release_date else "1 January, 1970"
-            url = result.get("href")
-
-            if not url:
-                continue
-            
-            result_type, result_id = url[1:].split("/")
-            if "-" in result_id:
-                result_id = result_id.partition("-")[0]
-            results.update({f"{index}. {title} ({release_date})": {"media_type": result_type, "tmdb_id": result_id}})
-
-        return results
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Vidsrc Command Line Interface")
     parser.add_argument("-src", "--source", dest="source_name", choices=SUPPORTED_SOURCES,
                         help="Specify the source name") 
-    parser.add_argument("-s", "--search", dest="search_media", type=str,
-                        help="Query the tmdb website for content")
-    parser.add_argument("-getsubs", "--fetch-subtitles", dest="fetch_subtitles", action="store_true",
-                        help="Specify if you want to fetch subtitles or not")
-    parser.add_argument("-lang", "--default-subtitles", dest="default_subtitles", type=str,
-                        help="Specify default subtitles")
-    parser.add_argument("-type", "--media-type", dest="media_type", choices=["movie", "tv"],
-                        help="Specify media type (movie or tv)")
     parser.add_argument("-id", "--media-id", dest="media_id", type=str,
                         help="Specify tmdb/imdb code to watch")
     parser.add_argument("-se", "--season", dest="season", type=str,
                         help="Specify the season number")
     parser.add_argument("-ep", "--episode", dest="episode", type=str,
                         help="Specify the episode number")
-    parser.add_argument("-nofs", "--no-fullscreen", dest="fullscreen", action="store_false",
-                        help="Stop playback from starting in fullscreen mode")
-    parser.add_argument("-logffmpeg", "--log-ffmpeg-errors", dest="ffmpeg_errors", action="store_false",
-                        help="Output ffmpeg errors from mpv")
+    parser.add_argument("-endep", "--end-episode", dest="end_episode", type=str,
+                        help="Specify the end episode number")
+    parser.add_argument("-cid", "--custom-id", dest="custom_id", type=str,
+                        help="Specify a custom name for the media id")
     args = parser.parse_args()
-
-    assert Utilities.check_mpv_exists(), "mpv is not installed or could not find installation! Please download mpv @ \"https://mpv.io/installation/\" before continuing..."
 
     source_name = args.source_name or questionary.select("Select Source", choices=SUPPORTED_SOURCES).unsafe_ask()
 
-    fetch_subtitles = args.fetch_subtitles
-    if not fetch_subtitles:
-        if source_name == "Filemoon": # This source doesnt provide subtitles as of 31/12/2023
-            fetch_subtitles = False
-        elif args.default_subtitles:
-            fetch_subtitles = True
-        else:
-            fetch_subtitles = questionary.confirm("Fetch Subtitles").unsafe_ask()
+    if source_name == "Filemoon": # This source doesnt provide subtitles as of 31/12/2023
+        fetch_subtitles = False
+    else:
+        fetch_subtitles = True
 
     vse = VidSrcExtractor(
         source_name = source_name,
@@ -166,70 +128,91 @@ if __name__ == "__main__":
     )
 
     media_id = args.media_id
-    media_type = args.media_type
-
-    if not args.media_id:
-        query = args.search_media or questionary.text("Search Media: ").unsafe_ask()
-
-        if query:
-            search_results = vse.query_tmdb(query)
-
-            select_media = questionary.select("Select Media", choices=list(search_results.keys())).unsafe_ask()
-            media_data = search_results.get(select_media)
-
-            media_id = media_data.get("tmdb_id")
-            media_type = media_data.get("media_type")
-        else:
-            print("[>] No query provided!")
+    media_type = "tv"
+    custom_id = args.custom_id
 
     if not media_id:
         media_id = questionary.text("Input imdb/tmdb code").unsafe_ask()
-    
-    if not media_type:
-        media_type = questionary.select("Select Media Type", choices=["Movie", "Tv"]).unsafe_ask().lower()
 
-    se = args.season or questionary.text("Input Season Number").unsafe_ask() if media_type == "tv" else None
-    ep = args.episode or questionary.text("Input Episode Number").unsafe_ask() if media_type == "tv" else None    
+    if not custom_id:
+        custom_id = questionary.text("Enter a custom name: ").unsafe_ask()
 
-    streams, subtitles, source_url = vse.get_streams(media_type, media_id, se, ep)
-    index, fetch_attempts = (SUPPORTED_SOURCES.index(vse.source_name), 0)
+    se = args.season or questionary.text("Input Season Number").unsafe_ask()
+    ep = args.episode or int(questionary.text("Input Start Episode Number").unsafe_ask()) 
+    end_ep = args.end_episode or int(questionary.text("Input Finish Episode Number").unsafe_ask()) 
 
-    while not streams:
-        index += 1 # we want the first source after the current index
-        fetch_attempts += 1
-
-        if (fetch_attempts > len(SUPPORTED_SOURCES)) and (not streams):
-            raise NoSourcesFound("Could not start media playback due to no sources being found.")
+    if media_type == "tv":
         
-        next_source = SUPPORTED_SOURCES[index % len(SUPPORTED_SOURCES)]
+        for episode_number in range(int(ep), int(end_ep) + 1):
+            sub_link = None
+            streams, subtitles, source_url = vse.get_streams(media_type, media_id, se, str(episode_number))
+            index, fetch_attempts = (SUPPORTED_SOURCES.index(vse.source_name), 0)
 
-        if questionary.confirm(f"Could not find sources for {vse.source_name}, would you like to try scraping {next_source}?").unsafe_ask():
-            vse.source_name = next_source
-            streams, subtitles = vse.get_streams(media_type, media_id, se, ep)
-    
-    stream = questionary.select("Select Stream", choices=streams).unsafe_ask() if len(streams) > 1 else streams[0]
-    mpv_cmd = f"mpv "
-    
-    if args.fullscreen:
-        mpv_cmd += "--fs "
+            while not streams:
+                index += 1 # we want the first source after the current index
+                fetch_attempts += 1
+                time.sleep(5)
 
-    if args.ffmpeg_errors:
-        mpv_cmd += "--msg-level=ffmpeg=no "
+                if (fetch_attempts > 1) and (not streams):
+                    print("No sources were found.")
+                    break  
 
-    mpv_cmd += f"\"{stream}\" "
+                streams, subtitles, source_url = vse.get_streams(media_type, media_id, se, str(episode_number))
 
-    if subtitles:
-        subtitle_list = list(subtitles.keys())
-        subtitle_list.append("None")
-        selection = args.default_subtitles
-        
-        if not selection:
-            print("[>] This can be skipped by passing --default-subtitles  DEFAULT_SUBTITLES")
-            selection = questionary.select("Select Subtitles", choices=subtitle_list).unsafe_ask()
+            if not streams:
+                continue
+            
+            stream = questionary.select("Select Stream", choices=streams).unsafe_ask() if len(streams) > 1 else streams[0]
 
-        if selection != "None":
-            mpv_cmd += f"--sub-file=\"{subtitles.get(selection)}\" "
+            if subtitles:
+                subtitle_list = list(subtitles.keys())
+                subtitle_list.append("None")
+                selection = "English"
+                sub_link = subtitles.get(selection)
+            
+            # Define the regex pattern to match the number prefix and date
+            pattern = r"^\d+\.\s+|\(\d{1,2}\.\s+\w+\s+\d{4}\)$"
 
-    mpv_cmd += f"--http-header-fields=\"Referer: {source_url}\""
-    print(mpv_cmd)
-    os.system(mpv_cmd)
+            if custom_id:
+                cleaned_text = custom_id.strip().replace(" ", ".")
+            else:
+                cleaned_text = media_id
+
+            se = int(se)
+            filename = f"{cleaned_text}.S{se:02d}E{episode_number:02d}"
+
+            tv_dir = "TV"
+            os.makedirs(tv_dir, exist_ok=True)
+            series_dir = os.path.join(tv_dir, cleaned_text)
+            os.makedirs(series_dir, exist_ok=True)
+            season_dir = os.path.join(series_dir, f"S{se:02d}")
+            os.makedirs(season_dir, exist_ok=True)
+
+            filepath = os.path.join(season_dir, filename)
+
+            print("[>]")
+            print("[>] Downloading: " + filename)
+            print("[>] Stream selected: " + stream)
+            print("[>] Subtitle link: " + sub_link) if sub_link is not None else print("[>] Subtitle link: None")
+            print("[>]")
+
+            os.system(f"yt-dlp {stream} -N 4 -R 20 -o {filepath}.mp4")
+            try:
+                if sub_link is not None:
+                    response = requests.get(sub_link)
+                    subs_dir = os.path.join(season_dir, "Subs")
+                    os.makedirs(subs_dir, exist_ok=True)
+                    subpath = os.path.join(subs_dir, filename)
+                    with open(f"{subpath}.vtt", 'wb') as file:
+                        file.write(response.content)
+
+                    os.system(f"vtt_to_srt {subpath}.vtt")
+                    if os.path.exists(f"{subpath}.vtt"): os.remove(f"{subpath}.vtt")
+                    if os.path.exists(f"{subpath}.srt"):
+                        print(f"[>] Downloaded {subpath}.srt")
+            except:
+                pass
+
+            if os.path.exists(f"{filepath}.mp4"):
+                print(f"[>] Downloaded {filepath}.mp4")
+            
