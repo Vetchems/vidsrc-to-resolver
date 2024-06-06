@@ -1,3 +1,5 @@
 requests
 beautifulsoup4
 questionary
+lxml_html_clean
+git+https://github.com/itsmehemant7/PyMovieDb@refs/pull/22/merge 

@@ -3,21 +3,10 @@
 
 ---
 
-### Info
-*While I plan on maintaining this for the foreseeable future, please note that I do intend to eventually archive this and merge all the work here into a package consisting of all other sources I have previously worked on.*
-
-*Consider this a usable public dev build, I wont be pushing any breaking changes.*
-
----
-
-### TODO
-- [ ] Add QoL features like autoplay 
-- [x] Add basic search functionality
-- [ ] Add download functionality
-- [ ] Allow users to customise certain output, such as the tmdb response string(s)
-- [ ] Add more configurability (allow users to pass their own subtitles url/file, ect)
-- [ ] Add settings file and allow users to save their prefrences e.g default-subtitles
-- [ ] Save user media data + watch time
+### Fork Edits
+- Download Functionality
+- TV Show Whole Season Download
+- TV Show Entire Series Download
 
 ---
 
@@ -30,13 +19,15 @@
 ### Pre-requisites
 - mpv-player (https://mpv.io/)
 - python3 (https://www.python.org/)
+- ffmpeg
+- yt-dlp
 
 ---
 
 ### Installation
 Download the repo
 
-```git clone https://github.com/Ciarands/vidsrc-to-resolver.git```
+```git clone https://github.com/vetchems/vidsrc-to-resolver.git```
 
 Move into repo folder
 
@@ -58,13 +49,27 @@ Run the file
 
 ---
 
-### Video [31/12/2023]
+### Fork Specific Examples
 
-https://github.com/Ciarands/vidsrc-to-resolver/assets/74070993/2dcf8e1d-0011-4241-8c67-afcb5faca7e1
+#### Download a batch of episodes from a season.
 
----
+Download episodes from imdb id `"tt4396630"` season 1, starting with episode 1 and ending with episode 13.
+If `-cid` is set then this name is used otherwise the imdb id is used.
+
+```python tvrip-retry3.py -src "Vidplay" -id "tt4396630" -se 1 -ep 1 -endep 13 -cid "The Gifted"```
+
+#### Auto download entire TV Show
+
+Download with prompt guides. You will be asked for IMDb id. The series name will attempt to be discovered and used but if not found you will be prompted to enter a name to use.
+
+This creates a batch file of the commands to download the entire series. You will be prompted to download now and the batch file saved for later.
+
+```python getimdb.py```
+
+You can skip the imdb id prompt by specifying it in the command line.
+
+```python getimdb.py -id tt6257970```
+
 
 ### Note
 This is purely intended as proof of concept, the distribution of program is intended for educational purposes ONLY. 
-
-#### [Join the discord for support](https://discord.gg/z2r8e8neQ7)
