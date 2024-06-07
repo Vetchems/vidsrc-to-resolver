@@ -22,6 +22,7 @@ ffprobe.exe
 yt-dlp.exe
 
 # generated batch files
+finished-batch
 *.bat
 !multi.bat
 !multiloop.bat

@@ -235,8 +235,8 @@ if __name__ == "__main__":
 
     if failed_downloads:
         current_time = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-        with open(f"failed_{custom_id}_{current_time}.bat", "w") as f:
+        with open(f"failed_{custom_id.replace(' ', '.')}_{current_time}.bat", "w") as f:
             f.write("@echo off\n")
             for season, episode in failed_downloads:
                 f.write(f'python tvrip-retry3.py -src "Vidplay" -id {media_id} -se {season} -ep {episode} -endep {episode} -cid "{custom_id}"\n')
-        print(f"[>] Batch File for Failed downloads has been written to failed_{custom_id}_{current_time}.bat")
+        print(f"[>] Batch File for Failed downloads has been written to failed_{custom_id.replace(' ', '.')}_{current_time}.bat")
