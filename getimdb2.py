@@ -7,9 +7,14 @@ import argparse
 import os
 import questionary
 
+SUPPORTED_SOURCES = ["Vidplay", "Filemoon"]
+
 parser = argparse.ArgumentParser(description="Vidsrc Command Line Interface")
+parser.add_argument("-src", "--source", dest="source_name", choices=SUPPORTED_SOURCES,
+                            help="Specify the source name")
 parser.add_argument("-id", "--media-id", dest="media_id", type=str,
                     help="Specify IMDb code to generate commands for.")
+parser.add_argument("-silent", "--silent", dest="silent", action="store_true",help="Silent mode")
 args = parser.parse_args()
 
 def remove_bad_filename_characters(filename):
@@ -52,6 +57,8 @@ def fetch_title_from_imdb(imdb_id):
 
 imdb = PyMovieDb.IMDB()
 
+silent = args.silent if args.silent else False
+
 ttid = args.media_id if args.media_id else questionary.text("Enter IMDb code: ").unsafe_ask()
 # raw_data = imdb.get_by_id(ttid)
 # data = json.loads(raw_data)
@@ -59,7 +66,7 @@ ttid = args.media_id if args.media_id else questionary.text("Enter IMDb code: ")
 # if 'name' in data:
 #     series_name = data['name']
 # else:
-print("Series Data Not Found. Fetching from IMDb website...")
+print("Fetching from IMDb website...")
 series_name = fetch_title_from_imdb(ttid)
 if series_name == '404 Error':
     print("404 Error: Series not found. Please check IMDb code or continue with manual input.")
@@ -76,7 +83,9 @@ episodes = json.loads(imdb.get_episodes(ttid))
 season_count = episodes['season_count']
 print(f"Total seasons: {season_count}")
 
-batch_filename = f"{cleaned_series_name.replace(' ', '.')}_{ttid}_{season_count}_Seasons.bat"
+source_name = args.source_name or questionary.select("Select Source", choices=SUPPORTED_SOURCES).unsafe_ask()
+
+batch_filename = f"{cleaned_series_name.replace(' ', '.')}_{ttid}_{source_name}_{season_count}_Seasons.bat"
 with open(batch_filename, "w") as f:
     f.write("@echo off\n")
     for season in episodes['seasons']:
@@ -85,12 +94,13 @@ with open(batch_filename, "w") as f:
         print(f"Season {season_id} has {episode_count} episodes")
         if season_id == "Unknown":
             continue
-        print(f'python tvrip-retry4.py -src "Vidplay" -id "{ttid}" -se {season_id} -ep 1 -endep {episode_count} -cid "{cleaned_series_name}"')
-        f.write(f'python tvrip-retry4.py -src "Vidplay" -id "{ttid}" -se {season_id} -ep 1 -endep {episode_count} -cid "{cleaned_series_name}"\n')
+        print(f'python tvrip-retry4.py -src "{source_name}" -id "{ttid}" -se {season_id} -ep 1 -endep {episode_count} -cid "{cleaned_series_name}"')
+        f.write(f'python tvrip-retry4.py -src "{source_name}" -id "{ttid}" -se {season_id} -ep 1 -endep {episode_count} -cid "{cleaned_series_name}"\n')
 print(f"[>] Batch File has been written to {batch_filename}")
 
-if questionary.confirm("Would you like to download the batch file?").unsafe_ask():
-    if questionary.confirm("Would you like to open a new window for the download?").unsafe_ask():
-        os.system(f"start {batch_filename}")
-    else:
-        os.system(f"{batch_filename}")
+if not silent:
+    if questionary.confirm("Would you like to download the batch file?").unsafe_ask():
+        if questionary.confirm("Would you like to open a new window for the download?").unsafe_ask():
+            os.system(f"start {batch_filename}")
+        else:
+            os.system(f"{batch_filename}")

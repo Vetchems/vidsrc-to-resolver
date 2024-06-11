@@ -7,7 +7,8 @@ from typing import Optional, Tuple, Dict, List
 from utils import Utilities, CouldntFetchKeys
 
 class VidplayExtractor:
-    KEY_URL = "https://github.com/Ciarands/vidsrc-keys/blob/main/keys.json"
+    KEY_URL = "https://github.com/Vetchems/vidsrc-keys/blob/main/keys.json"
+    # KEY_URL = "https://github.com/Ciarands/vidsrc-keys/blob/main/keys.json"
 
     @staticmethod
     def get_futoken(key: str, url: str, provider_url: str) -> str:
