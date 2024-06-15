@@ -168,8 +168,8 @@ def download_episode(season, episode_number):
         print("[>] Subtitle link: " + sub_link) if sub_link is not None else print("[>] Subtitle link: None")
         print("[>]")
 
-        if not subs_only:
-            os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o {filepath}.mp4')
+        
+        os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o {filepath}.mp4')
         try:
             if sub_link is not None:
                 response = requests.get(sub_link)
@@ -246,7 +246,7 @@ def download_movie():
         print("[>] Subtitle link: " + sub_link) if sub_link is not None else print("[>] Subtitle link: None")
         print("[>]")
 
-        # if not subs_only:
+        
         os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o {filepath}.mp4')
         
         try:
