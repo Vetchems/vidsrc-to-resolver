@@ -17,6 +17,8 @@ parser.add_argument("-id", "--media-id", dest="media_id", type=str,
 parser.add_argument("-silent", "--silent", dest="silent", action="store_true", help="Silent mode")
 parser.add_argument("-dl", "--auto-download", dest="auto_dl", action="store_true", help="Auto Download mode")
 parser.add_argument("-f", "--input-file", dest="input_file", type=str, help="Input file with list of IMDb codes or links")
+parser.add_argument("-nix", "--nix", dest="nix", action="store_true", help="Create sh instead of bat")
+
 args = parser.parse_args()
 
 def remove_bad_filename_characters(filename):
@@ -75,6 +77,9 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
             return
 
     cleaned_media_name = remove_bad_filename_characters(media_name)
+    if cleaned_media_name.endswith('.'):
+        cleaned_media_name = cleaned_media_name[:-1]
+
     print(f'Name: {media_name}\nCleaned name: {cleaned_media_name}')
 
     media_type = "TV Series" if is_series else "Movie"
@@ -85,36 +90,63 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
         season_count = episodes['season_count']
         print(f"Total seasons: {season_count}")
 
-        batch_filename = f"{cleaned_media_name.replace(' ', '.')}_{ttid}_{source_name}_{season_count}_Seasons.bat"
-        with open(batch_filename, "w") as f:
-            f.write("@echo off\n")
+        output_name = f"{cleaned_media_name}_{ttid}_{source_name}_{season_count}_Seasons"
+        output_name += ".sh" if nix else ".bat"
+        # if nix:
+        #     batch_filename = f"{cleaned_media_name.replace(' ', '.')}_{ttid}_{source_name}_{season_count}_Seasons.sh"
+        # else:
+        #     batch_filename = f"{cleaned_media_name.replace(' ', '.')}_{ttid}_{source_name}_{season_count}_Seasons.bat"
+
+        with open(output_name, "w") as f:
+            if not nix: f.write("@echo off\n")
+
             for season in episodes['seasons']:
                 season_id = season['id']
                 episode_count = season['episode_count']
                 print(f"Season {season_id} has {episode_count} episodes")
+
                 if season_id == "Unknown":
                     continue
-                f.write(f'python downstream.py -src "{source_name}" -id "{ttid}" -se {season_id} -ep 1 -endep {episode_count} -cid "{cleaned_media_name}" -type "tv"\n')
-    else:
-        batch_filename = f"{cleaned_media_name.replace(' ', '.').replace('(', '').replace(')', '')}_{ttid}_{source_name}.bat"
-        with open(batch_filename, "w") as f:
-            f.write("@echo off\n")
-            f.write(f'python downstream.py -src "{source_name}" -id "{ttid}" -cid "{cleaned_media_name}" -type "movie"\n')
 
-    print(f"[>] Batch File has been written to {batch_filename}")
+                command = f'python downstream.py -src "{source_name}" -id "{ttid}" -se {season_id} -ep 1 -endep {episode_count} -cid "{cleaned_media_name}" -type "tv"'
+                command += " -nix\n" if nix else "\n"
+
+                f.write(command)
+            
+
+    else:
+
+        output_name = f"{cleaned_media_name.replace(' ', '.').replace('(', '').replace(')', '')}_{ttid}_{source_name}"
+        output_name += ".sh" if nix else ".bat"
+
+        with open(output_name, "w") as f:
+            if not nix: f.write("@echo off\n")
+            
+            command = f'python downstream.py -src "{source_name}" -id "{ttid}" -cid "{cleaned_media_name}" -type "movie"'
+            command += " -nix\n" if nix else "\n"
+            f.write(command)
+
+
+    print(f"[>] Scripts File has been written to {output_name}")
     if auto_dl:
         print("[>] Starting download...")
-        os.system(f"{batch_filename}")
+        os.system(f"{output_name}")
         return
 
     if not silent:
-        if questionary.confirm("Would you like to download the batch file?").unsafe_ask():
-            if questionary.confirm("Would you like to open a new window for the download?").unsafe_ask():
-                os.system(f"start {batch_filename}")
+        if questionary.confirm("Would you like to download the files?").unsafe_ask():
+            if nix:
+                os.system(f"{output_name}")
             else:
-                os.system(f"{batch_filename}")
+                if questionary.confirm("Would you like to open a new window for the download?").unsafe_ask():
+                    os.system(f"start {output_name}")
+                else:
+                    os.system(f"{output_name}")
+
+
 
 auto_dl = args.auto_dl if args.auto_dl else False
+nix = args.nix if args.nix else False
 
 if auto_dl:
     source_name = args.source_name or "Vidplay"

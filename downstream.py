@@ -311,9 +311,14 @@ if __name__ == "__main__":
                             help="When used will only download subtitles and not the media files.")
         parser.add_argument("-type", "--media-type", dest="media_type", choices=["movie", "tv"],
                             help="Specify media type (movie or tv)")
+        parser.add_argument("-nix", "--nix", dest="nix", action="store_true", 
+                            help="Create sh instead of bat")
         args = parser.parse_args()
 
         source_name = args.source_name or questionary.select("Select Source", choices=SUPPORTED_SOURCES).unsafe_ask()
+        nix = args.nix or False
+
+
 
         if source_name == "Filemoon": # This source doesnt provide subtitles as of 31/12/2023
             fetch_subtitles = False
@@ -340,6 +345,7 @@ if __name__ == "__main__":
             # media_type = determine_media_type(media_id) or questionary.select("Select media type", choices=["movie", "tv"]).unsafe_ask()
             media_type = questionary.select("Select media type", choices=["Movie", "Tv"]).unsafe_ask().lower()
 
+
         if media_type == "tv":
             se = args.season or questionary.text("Input Season Number").unsafe_ask()
             ep = args.episode or int(questionary.text("Input Start Episode Number").unsafe_ask()) 
@@ -362,12 +368,21 @@ if __name__ == "__main__":
 
             if failed_downloads:
                 current_time = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-                with open(f"failed_{custom_id.replace(' ', '.')}_{current_time}.bat", "w") as f:
-                    f.write("@echo off\n")
+                failed_name = f"failed_{custom_id.replace(' ', '.')}_{current_time}"
+                failed_name += ".sh" if args.nix else ".bat"
+
+                with open(failed_name, "w") as f:
+                    if not nix:
+                        f.write("@echo off\n")
                     for season, episode in failed_downloads:
-                        f.write(f'python downstream.py -src "{source_name}" -id {media_id} -se {season} -ep {episode} -endep {episode} -cid "{custom_id}" -type "tv"\n')
-                print(f"[>] Batch File for Failed downloads has been written to failed_{custom_id.replace(' ', '.')}_{current_time}.bat")
+                        failed_command = f'python downstream.py -src "{source_name}" -id {media_id} -se {season} -ep {episode} -endep {episode} -cid "{custom_id}" -type "tv"'
+                        failed_command += " -nix\n" if args.nix else "\n"
+                        f.write(failed_command)
+                print(f"[>] Script File for Failed downloads has been written to {failed_name}")
+
         elif media_type == "movie":
             download_movie()
+
+
     except Exception as e:
         print(f"Unexpected error: {e}")
