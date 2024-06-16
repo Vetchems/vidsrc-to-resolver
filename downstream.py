@@ -169,7 +169,7 @@ def download_episode(season, episode_number):
         print("[>]")
 
         
-        os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o {filepath}.mp4')
+        os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4"')
         try:
             if sub_link is not None:
                 response = requests.get(sub_link)
@@ -247,7 +247,7 @@ def download_movie():
         print("[>]")
 
         
-        os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o {filepath}.mp4')
+        os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4"')
         
         try:
             if sub_link is not None:
@@ -380,7 +380,7 @@ if __name__ == "__main__":
                         f.write(failed_command)
                 print(f"[>] Script File for Failed downloads has been written to {failed_name}")
                 if nix:
-                    os.system(f"chmod +x {failed_name}")
+                    os.system(f'chmod +x "{failed_name}"')
 
         elif media_type == "movie":
             download_movie()
