@@ -126,7 +126,8 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
             command += " -nix\n" if nix else "\n"
             f.write(command)
 
-
+    if nix:
+        os.system(f"chmod +x {output_name}")
     print(f"[>] Scripts File has been written to {output_name}")
     if auto_dl:
         print("[>] Starting download...")

@@ -379,6 +379,8 @@ if __name__ == "__main__":
                         failed_command += " -nix\n" if args.nix else "\n"
                         f.write(failed_command)
                 print(f"[>] Script File for Failed downloads has been written to {failed_name}")
+                if nix:
+                    os.system(f"chmod +x {failed_name}")
 
         elif media_type == "movie":
             download_movie()
