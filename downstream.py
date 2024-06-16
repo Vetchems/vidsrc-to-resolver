@@ -258,7 +258,9 @@ def download_movie():
                 subpath = os.path.join(subs_dir, filename)
                 print("2")
                 with open(f'"{subpath}.vtt"', 'wb') as file:
+                    print("2.5")
                     file.write(response.content)
+                    
 
                 print("3")
                 os.system(f'vtt_to_srt "{subpath}.vtt"')
