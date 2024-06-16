@@ -131,13 +131,16 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
     print(f"[>] Scripts File has been written to {output_name}")
     if auto_dl:
         print("[>] Starting download...")
-        os.system(f"{output_name}")
+        if nix: 
+            os.system(f"./{output_name}") 
+        else: 
+            os.system(f"{output_name}")
         return
 
     if not silent:
         if questionary.confirm("Would you like to download the files?").unsafe_ask():
             if nix:
-                os.system(f"{output_name}")
+                os.system(f"./{output_name}")
             else:
                 if questionary.confirm("Would you like to open a new window for the download?").unsafe_ask():
                     os.system(f"start {output_name}")
