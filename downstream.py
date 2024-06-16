@@ -176,7 +176,7 @@ def download_episode(season, episode_number):
                 subs_dir = os.path.join(season_dir, "Subs")
                 os.makedirs(subs_dir, exist_ok=True)
                 subpath = os.path.join(subs_dir, filename)
-                with open(f'"{subpath}.vtt"', 'wb') as file:
+                with open(f"{subpath}.vtt", 'wb') as file:
                     file.write(response.content)
 
                 os.system(f'vtt_to_srt "{subpath}.vtt"')
@@ -254,19 +254,14 @@ def download_movie():
                 response = requests.get(sub_link)
                 subs_dir = os.path.join(movie_subdir, "Subs")
                 os.makedirs(subs_dir, exist_ok=True)
-                print("1")
                 subpath = os.path.join(subs_dir, filename)
-                print("2")
-                with open(f'"{subpath}.vtt"', 'wb') as file:
-                    print("2.5")
+                with open(f"{subpath}.vtt", 'wb') as file:
                     file.write(response.content)
-                    
 
-                print("3")
                 os.system(f'vtt_to_srt "{subpath}.vtt"')
-                print("4")
+
                 if os.path.exists(f'"{subpath}.vtt"'): os.remove(f'"{subpath}.vtt"')
-                print("5")
+
                 if os.path.exists(f'"{subpath}.srt"'):
                     print(f'[>] Downloaded "{subpath}.srt"')
         except:
