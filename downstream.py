@@ -176,12 +176,12 @@ def download_episode(season, episode_number):
                 subs_dir = os.path.join(season_dir, "Subs")
                 os.makedirs(subs_dir, exist_ok=True)
                 subpath = os.path.join(subs_dir, filename)
-                with open(f"{subpath}.vtt", 'wb') as file:
+                with open(f'"{subpath}.vtt"', 'wb') as file:
                     file.write(response.content)
 
-                os.system(f"vtt_to_srt {subpath}.vtt")
-                if os.path.exists(f"{subpath}.vtt"): os.remove(f"{subpath}.vtt")
-                if os.path.exists(f"{subpath}.srt"):
+                os.system(f'vtt_to_srt "{subpath}.vtt"')
+                if os.path.exists(f'"{subpath}.vtt"'): os.remove(f'"{subpath}.vtt"')
+                if os.path.exists(f'"{subpath}.srt"'):
                     print(f"[>] Downloaded {subpath}.srt")
         except:
             pass
@@ -255,13 +255,13 @@ def download_movie():
                 subs_dir = os.path.join(movie_subdir, "Subs")
                 os.makedirs(subs_dir, exist_ok=True)
                 subpath = os.path.join(subs_dir, filename)
-                with open(f"{subpath}.vtt", 'wb') as file:
+                with open(f'"{subpath}.vtt"', 'wb') as file:
                     file.write(response.content)
 
-                os.system(f"vtt_to_srt {subpath}.vtt")
-                if os.path.exists(f"{subpath}.vtt"): os.remove(f"{subpath}.vtt")
-                if os.path.exists(f"{subpath}.srt"):
-                    print(f"[>] Downloaded {subpath}.srt")
+                os.system(f'vtt_to_srt "{subpath}.vtt"')
+                if os.path.exists(f'"{subpath}.vtt"'): os.remove(f'"{subpath}.vtt"')
+                if os.path.exists(f'"{subpath}.srt"'):
+                    print(f'[>] Downloaded "{subpath}.srt"')
         except:
             pass
 
