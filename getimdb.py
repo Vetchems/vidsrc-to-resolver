@@ -90,7 +90,7 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
         season_count = episodes['season_count']
         print(f"Total seasons: {season_count}")
 
-        output_name = f"{cleaned_media_name}_{ttid}_{source_name}_{season_count}_Seasons"
+        output_name = f"{cleaned_media_name.replace(' ', '.')}_{ttid}_{source_name}_{season_count}_Seasons"
         output_name += ".sh" if nix else ".bat"
         # if nix:
         #     batch_filename = f"{cleaned_media_name.replace(' ', '.')}_{ttid}_{source_name}_{season_count}_Seasons.sh"
@@ -127,7 +127,7 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
             f.write(command)
 
     if nix:
-        os.system(f"chmod +x {output_name}")
+        os.system(f'chmod +x "{output_name}"')
     print(f"[>] Scripts File has been written to {output_name}")
     if auto_dl:
         print("[>] Starting download...")
