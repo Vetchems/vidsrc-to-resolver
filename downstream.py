@@ -152,10 +152,11 @@ def download_episode(season, episode_number):
 
         se = int(season)
         filename = f"{cleaned_text}.S{se:02d}E{episode_number:02d}"
+        folder_name = f"{cleaned_text} [imdbid-{media_id}]"
 
         tv_dir = "TV"
         os.makedirs(tv_dir, exist_ok=True)
-        series_dir = os.path.join(tv_dir, cleaned_text)
+        series_dir = os.path.join(tv_dir, folder_name)
         os.makedirs(series_dir, exist_ok=True)
         season_dir = os.path.join(series_dir, f"S{se:02d}")
         os.makedirs(season_dir, exist_ok=True)
@@ -232,10 +233,11 @@ def download_movie():
             cleaned_text = media_id
 
         filename = f"{cleaned_text}"
+        folder_name = f"{cleaned_text} [imdbid-{media_id}]"
 
         movie_dir = "Movies"
         os.makedirs(movie_dir, exist_ok=True)
-        movie_subdir = os.path.join(movie_dir, cleaned_text)
+        movie_subdir = os.path.join(movie_dir, folder_name)
         os.makedirs(movie_subdir, exist_ok=True)
 
         filepath = os.path.join(movie_subdir, filename)
@@ -260,10 +262,10 @@ def download_movie():
 
                 os.system(f'vtt_to_srt "{subpath}.vtt"')
 
-                if os.path.exists(f'"{subpath}.vtt"'): os.remove(f'"{subpath}.vtt"')
+                if os.path.exists(f"{subpath}.vtt"): os.remove(f"{subpath}.vtt")
 
-                if os.path.exists(f'"{subpath}.srt"'):
-                    print(f'[>] Downloaded "{subpath}.srt"')
+                if os.path.exists(f"{subpath}.srt"):
+                    print(f"[>] Downloaded {subpath}.srt")
         except:
             pass
 

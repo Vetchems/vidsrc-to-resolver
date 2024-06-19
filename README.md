@@ -7,6 +7,7 @@
 - Download Functionality
 - TV Show Whole Season Download
 - TV Show Entire Series Download
+- Movie Download
 
 ---
 
@@ -19,8 +20,8 @@
 ### Pre-requisites
 - mpv-player (https://mpv.io/)
 - python3 (https://www.python.org/)
-- ffmpeg
-- yt-dlp
+- ffmpeg (https://www.ffmpeg.org/)
+- yt-dlp (https://github.com/yt-dlp/yt-dlp)
 
 ---
 
@@ -56,9 +57,9 @@ Run the file
 Download episodes from imdb id `"tt4396630"` season 1, starting with episode 1 and ending with episode 13.
 If `-cid` is set then this name is used otherwise the imdb id is used.
 
-```python tvrip-retry3.py -src "Vidplay" -id "tt4396630" -se 1 -ep 1 -endep 13 -cid "The Gifted"```
+```python downstream.py -src "Vidplay" -id "tt4396630" -se 1 -ep 1 -endep 13 -cid "The Gifted" -type "tv"```
 
-#### Auto download entire TV Show
+#### Auto download entire TV Show/Movie
 
 Download with prompt guides. You will be asked for IMDb id. The series name will attempt to be discovered and used but if not found you will be prompted to enter a name to use.
 
@@ -66,9 +67,9 @@ This creates a batch file of the commands to download the entire series. You wil
 
 ```python getimdb.py```
 
-You can skip the imdb id prompt by specifying it in the command line.
+You can skip the imdb id prompt by specifying it in the command line. and auto download with -dl
 
-```python getimdb.py -id tt6257970```
+```python getimdb.py -dl -id tt6257970```
 
 
 ### Note

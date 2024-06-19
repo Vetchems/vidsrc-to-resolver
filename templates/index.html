@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Download Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #progress {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Trigger Download</h1>
+    <form id="downloadForm">
+        <label for="imdb_id">IMDb ID:</label>
+        <input type="text" id="imdb_id" name="imdb_id" required>
+        <br><br>
+        <label for="source_name">Source Name:</label>
+        <select id="source_name" name="source_name">
+            <option value="Vidplay">Vidplay</option>
+            <option value="Filemoon">Filemoon</option>
+        </select>
+        <br><br>
+        <label for="auto_dl">Auto Download:</label>
+        <input type="checkbox" id="auto_dl" name="auto_dl">
+        <br><br>
+        <label for="silent">Silent Mode:</label>
+        <input type="checkbox" id="silent" name="silent">
+        <br><br>
+        <button type="submit">Start Download</button>
+    </form>
+    <div id="progress"></div>
+    <br>
+    <a href="/queue">View Queue</a>
+
+    <script>
+        document.getElementById('downloadForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const formData = new FormData(this);
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = key === 'auto_dl' || key === 'silent' ? value === 'on' : value;
+            });
+
+            fetch('/start-download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const taskId = data.task_id;
+                const positionInQueue = data.position_in_queue;
+                const progressDiv = document.getElementById('progress');
+                progressDiv.innerHTML = `Task ID: ${taskId}, Position in Queue: ${positionInQueue}`;
+
+                const interval = setInterval(() => {
+                    fetch(`/progress/${taskId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        progressDiv.innerHTML = `Progress: ${data.status}, Elapsed Time: ${data.elapsed_time ? data.elapsed_time.toFixed(2) : 'N/A'} seconds`;
+                        if (data.status === 'Completed') {
+                            clearInterval(interval);
+                        }
+                    });
+                }, 1000);
+            });
+        });
+    </script>
+</body>
+</html>

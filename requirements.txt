@@ -3,4 +3,5 @@ beautifulsoup4
 questionary
 lxml_html_clean
 vtt_to_srt3
-git+https://github.com/itsmehemant7/PyMovieDb@refs/pull/22/merge 
+flask
+git+https://github.com/itsmehemant7/PyMovieDb@refs/pull/22/merge
