@@ -9,6 +9,15 @@
         #progress {
             margin-top: 20px;
         }
+        .progress-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .progress-item.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -57,15 +66,22 @@
                 const taskId = data.task_id;
                 const positionInQueue = data.position_in_queue;
                 const progressDiv = document.getElementById('progress');
-                progressDiv.innerHTML = `Task ID: ${taskId}, Position in Queue: ${positionInQueue}`;
+                
+                const progressItem = document.createElement('div');
+                progressItem.className = 'progress-item';
+                progressItem.id = `progress-${taskId}`;
+                progressItem.innerHTML = `Task ID: ${taskId}, Position in Queue: ${positionInQueue}`;
+                progressDiv.appendChild(progressItem);
 
                 const interval = setInterval(() => {
                     fetch(`/progress/${taskId}`)
                     .then(response => response.json())
                     .then(data => {
-                        progressDiv.innerHTML = `Progress: ${data.status}, Elapsed Time: ${data.elapsed_time ? data.elapsed_time.toFixed(2) : 'N/A'} seconds`;
+                        const progressItem = document.getElementById(`progress-${taskId}`);
+                        progressItem.innerHTML = `Progress: ${data.status}, Elapsed Time: ${data.elapsed_time ? data.elapsed_time.toFixed(2) : 'N/A'} seconds`;
                         if (data.status === 'Completed') {
                             clearInterval(interval);
+                            progressItem.classList.add('hidden');
                         }
                     });
                 }, 1000);
