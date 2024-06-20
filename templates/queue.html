@@ -17,58 +17,121 @@
         th {
             background-color: #f2f2f2;
         }
+        img {
+            max-height: 150px;
+        }
     </style>
+    <script>
+        function fetchTaskStatus() {
+            fetch('/queue-status')
+                .then(response => response.json())
+                .then(data => {
+                    updateTasks(data.running_tasks, 'running');
+                    updateTasks(data.queued_tasks, 'queued');
+                    updateTasks(data.completed_tasks, 'completed');
+                })
+                .catch(error => console.error('Error fetching task status:', error));
+        }
+
+        function updateTasks(tasks, type) {
+            const sectionId = type + '-tasks';
+            const section = document.getElementById(sectionId);
+            section.innerHTML = ''; // Clear existing content
+
+            tasks.forEach(task => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td align="Center">${task.id}</td>
+                    <td align="Center">${task.poster ? `<img src="${task.poster}" alt="Poster">` : '<p>No poster available</p>'}</td>
+                    <td align="Center"><a href="https://www.imdb.com/title/${task.imdb_id}" target="_blank">${task.imdb_id}</a></td>
+                    <td align="Center">${task.source}</td>
+                    ${type === 'running' ? `
+                        <td>
+                            <div id="progress-${task.id}">Progress: ${task.progress}</div>
+                            <div id="elapsed-time-${task.id}">Elapsed Time: ${task.elapsed_time.toFixed(2)}</div>
+                        </td>
+                    ` : type === 'queued' ? `
+                        <td><button onclick="removeTask('${task.id}')">Remove</button></td>
+                    ` : `
+                        <td>${task.status}</td>
+                    `}
+                `;
+                section.appendChild(row);
+            });
+        }
+
+        function removeTask(taskId) {
+            fetch('/remove-task', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ task_id: taskId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchTaskStatus(); // Update the task status after removal
+            });
+        }
+
+        function init() {
+            fetchTaskStatus(); // Initial fetch
+            setInterval(fetchTaskStatus, 5000); // Fetch status every 5 seconds
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
 </head>
 <body>
     <h1>Queue Status</h1>
+
     <h2>Running Tasks</h2>
     <table>
-        <tr>
-            <th>Task ID</th>
-            <th>IMDb ID</th>
-            <th>Source</th>
-            <th>Elapsed Time (seconds)</th>
-        </tr>
-        {% for task_id, task_info in running_tasks.items() %}
-        <tr>
-            <td>{{ task_id }}</td>
-            <td><a href="https://www.imdb.com/title/{{ task_info['imdb_id'] }}" target="_blank">{{ task_info['imdb_id'] }}</a></td>
-            <td>{{ task_info['source_name'] }}</td>
-            <td>{{ (time.time() - task_info['start_time'])|round(2) }}</td>
-        </tr>
-        {% endfor %}
+        <thead>
+            <tr>
+                <th width="40px">Task ID</th>
+                <th width="100px">Poster</th>
+                <th width="80px">IMDb ID</th>
+                <th width="80px">Source</th>
+                <th>Elapsed Time (seconds)</th>
+            </tr>
+        </thead>
+        <tbody id="running-tasks">
+            <!-- Running tasks will be dynamically populated here -->
+        </tbody>
     </table>
-    
+
     <h2>Queued Tasks</h2>
     <table>
-        <tr>
-            <th>Position</th>
-            <th>Task ID</th>
-            <th>IMDb ID</th>
-            <th>Source</th>
-        </tr>
-        {% for position, task in enumerate(queued_tasks) %}
-        <tr>
-            <td>{{ position + 1 }}</td>
-            <td>{{ task[0] }}</td>
-            <td><a href="https://www.imdb.com/title/{{ task[1] }}" target="_blank">{{ task[1] }}</a></td>
-            <td>{{ task[2] }}</td>
-        </tr>
-        {% endfor %}
+        <thead>
+            <tr>
+                <th width="40px">Task ID</th>
+                <th width="100px">Poster</th>
+                <th width="80px">IMDb ID</th>
+                <th width="80px">Source</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="queued-tasks">
+            <!-- Queued tasks will be dynamically populated here -->
+        </tbody>
     </table>
 
     <h2>Completed Tasks</h2>
     <table>
-        <tr>
-            <th>Task ID</th>
-            <th>Status</th>
-        </tr>
-        {% for task_id, result in task_results.items() %}
-        <tr>
-            <td>{{ task_id }}</td>
-            <td>{{ result }}</td>
-        </tr>
-        {% endfor %}
+        <thead>
+            <tr>
+                <th width="40px">Task ID</th>
+                <th width="100px">Poster</th>
+                <th width="80px">IMDb ID</th>
+                <th width="80px">Source</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="completed-tasks">
+            <!-- Completed tasks will be dynamically populated here -->
+        </tbody>
     </table>
 </body>
 </html>
