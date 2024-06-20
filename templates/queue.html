@@ -9,16 +9,21 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 20px; /* Add margin to separate form and tables */
         }
         th, td {
             border: 1px solid #ddd;
             padding: 8px;
+            max-height: 150px;
         }
         th {
             background-color: #f2f2f2;
         }
         img {
             max-height: 150px;
+        }
+        #progress {
+            margin-top: 20px;
         }
     </style>
     <script>
@@ -39,7 +44,12 @@
             section.innerHTML = ''; // Clear existing content
 
             tasks.forEach(task => {
+                const elapsedTime = task.elapsed_time ? formatTime(task.elapsed_time) : 'N/A';
                 const row = document.createElement('tr');
+                const completed_status = task.status ? task.status.match(/(\d+)/) : 'N/A';
+                const timeTaken = formatTime(completed_status[0])
+                const truncatedProgress = task.progress ? truncateString(task.progress) : 'N/A';
+
                 row.innerHTML = `
                     <td align="Center">${task.id}</td>
                     <td align="Center">${task.poster ? `<img src="${task.poster}" alt="Poster">` : '<p>No poster available</p>'}</td>
@@ -47,17 +57,29 @@
                     <td align="Center">${task.source}</td>
                     ${type === 'running' ? `
                         <td>
-                            <div id="progress-${task.id}">Progress: ${task.progress}</div>
-                            <div id="elapsed-time-${task.id}">Elapsed Time: ${task.elapsed_time.toFixed(2)}</div>
+                            <div id="progress-${task.id}">Progress: ${truncatedProgress}</div>
+                            <div id="elapsed-time-${task.id}">Elapsed Time: ${elapsedTime}</div>
                         </td>
                     ` : type === 'queued' ? `
-                        <td><button onclick="removeTask('${task.id}')">Remove</button></td>
+                        <td><button onclick="confirmRemoveTask('${task.id}')">Remove</button></td>
                     ` : `
-                        <td>${task.status}</td>
+                        <td>Completed in: ${timeTaken}</td>
                     `}
                 `;
                 section.appendChild(row);
             });
+        }
+
+        // Function to reverse string
+        function truncateString(str) {
+            const strRev =  str.split('').reverse().slice(0,300).reverse().join('');
+            return strRev;
+        }
+
+        function confirmRemoveTask(taskId) {
+            if (confirm("Are you sure you want to remove this task?")) {
+                removeTask(taskId);
+            }
         }
 
         function removeTask(taskId) {
@@ -70,20 +92,66 @@
             })
             .then(response => response.json())
             .then(data => {
-                alert(data.message);
+                // alert(data.message);
                 fetchTaskStatus(); // Update the task status after removal
             });
         }
 
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
+        }
+
         function init() {
             fetchTaskStatus(); // Initial fetch
-            setInterval(fetchTaskStatus, 5000); // Fetch status every 5 seconds
+            setInterval(fetchTaskStatus, 1000); // Fetch status every 1 seconds
         }
 
         document.addEventListener('DOMContentLoaded', init);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('downloadForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                const formData = new FormData(this);
+                const data = {};
+                formData.forEach((value, key) => {
+                    data[key] = key === 'nix' ? value === 'on' : value;
+                });
+
+                fetch('/start-download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(() => {
+                    fetchTaskStatus(); // Refresh task status to reflect new task
+                })
+                .catch(error => {
+                    console.error('Error starting download:', error);
+                });
+            });
+        });
     </script>
 </head>
 <body>
+    <h1>Trigger Download</h1>
+    <form id="downloadForm">
+        <label for="imdb_id">IMDb ID:</label>
+        <input type="text" id="imdb_id" name="imdb_id" required> <button type="submit">Start Download</button> <select id="source_name" name="source_name">
+            <option value="Vidplay">Vidplay</option>
+            <option value="Filemoon">Filemoon</option>
+        </select> <label for="nix">Nix Mode:</label> <input type="checkbox" id="nix" name="nix">
+        <br><br>
+        
+    </form>
+
+    <div id="progress"></div>
+
     <h1>Queue Status</h1>
 
     <h2>Running Tasks</h2>
@@ -94,7 +162,7 @@
                 <th width="100px">Poster</th>
                 <th width="80px">IMDb ID</th>
                 <th width="80px">Source</th>
-                <th>Elapsed Time (seconds)</th>
+                <th>Status</th>
             </tr>
         </thead>
         <tbody id="running-tasks">
