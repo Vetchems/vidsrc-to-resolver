@@ -76,7 +76,7 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
         if media_name == 'q':
             return
 
-    cleaned_media_name = remove_bad_filename_characters(media_name)
+    cleaned_media_name = remove_bad_filename_characters(media_name).replace("&", "and")
     if cleaned_media_name.endswith('.'):
         cleaned_media_name = cleaned_media_name[:-1]
 
@@ -133,8 +133,8 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
         print("[>] Starting download...")
         if nix: 
             os.system(f"./{output_name}") 
-        else: 
-            os.system(f"{output_name}")
+        else:
+            os.system(f'"{output_name}"')
         return
 
     if not silent:

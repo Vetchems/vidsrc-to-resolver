@@ -4,4 +4,5 @@ questionary
 lxml_html_clean
 vtt_to_srt3
 flask
+flask-cors
 git+https://github.com/itsmehemant7/PyMovieDb@refs/pull/22/merge

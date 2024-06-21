@@ -105,7 +105,7 @@
 
         function init() {
             fetchTaskStatus(); // Initial fetch
-            setInterval(fetchTaskStatus, 1000); // Fetch status every 1 seconds
+            setInterval(fetchTaskStatus, 5000); // Fetch status every 5 seconds
         }
 
         document.addEventListener('DOMContentLoaded', init);

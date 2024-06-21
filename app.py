@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 import subprocess
 import threading
 import time
@@ -7,9 +8,10 @@ from bs4 import BeautifulSoup
 import requests
 
 app = Flask(__name__)
+CORS(app)
 
 # Configuration
-MAX_SIMULTANEOUS_TASKS = 2  # Configurable number of simultaneous tasks
+MAX_SIMULTANEOUS_TASKS = 4  # Configurable number of simultaneous tasks
 
 # Task Management
 task_queue = Queue()
@@ -80,11 +82,11 @@ def process_next_task():
         thread = threading.Thread(target=run_script, args=(imdb_id, source_name, nix, task_id))
         thread.start()
 
-@app.route('/')
+@app.route('/index')
 def index():
     return render_template('index.html')
 
-@app.route('/queue')
+@app.route('/')
 def queue_status():
     queued_tasks = list(task_queue.queue)
     return render_template('queue.html', running_tasks=running_tasks, queued_tasks=queued_tasks, task_results=task_results, poster_links=poster_links, time=time, enumerate=enumerate)

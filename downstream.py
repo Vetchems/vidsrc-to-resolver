@@ -181,8 +181,8 @@ def download_episode(season, episode_number):
                     file.write(response.content)
 
                 os.system(f'vtt_to_srt "{subpath}.vtt"')
-                if os.path.exists(f'"{subpath}.vtt"'): os.remove(f'"{subpath}.vtt"')
-                if os.path.exists(f'"{subpath}.srt"'):
+                if os.path.exists(f"{subpath}.vtt"): os.remove(f"{subpath}.vtt")
+                if os.path.exists(f"{subpath}.srt"):
                     print(f"[>] Downloaded {subpath}.srt")
         except:
             pass
