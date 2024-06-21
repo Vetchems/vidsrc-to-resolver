@@ -170,7 +170,11 @@ def download_episode(season, episode_number):
         print("[>]")
 
         
-        os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4"')
+        if newline:
+            os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4" --newline --progress-template "download:[download] %(progress.filename)s - [%(progress._percent_str)s]  %(progress._downloaded_bytes_str)s of %(progress._total_bytes_estimate_str)s - [%(progress._speed_str)s] [ETA %(progress._eta_str)s]"')
+        else:
+            os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4" --progress-template "download:[download] %(progress.filename)s - [%(progress._percent_str)s]  %(progress._downloaded_bytes_str)s of %(progress._total_bytes_estimate_str)s - [%(progress._speed_str)s] [ETA %(progress._eta_str)s]"')
+
         try:
             if sub_link is not None:
                 response = requests.get(sub_link)
@@ -248,8 +252,10 @@ def download_movie():
         print("[>] Subtitle link: " + sub_link) if sub_link is not None else print("[>] Subtitle link: None")
         print("[>]")
 
-        
-        os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4"')
+        if newline:
+            os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4" --newline --progress-template "download:[download] %(progress.filename)s - [%(progress._percent_str)s]  %(progress._downloaded_bytes_str)s of %(progress._total_bytes_estimate_str)s - [%(progress._speed_str)s] [ETA %(progress._eta_str)s]"')
+        else:
+            os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4" --progress-template "download:[download] %(progress.filename)s - [%(progress._percent_str)s]  %(progress._downloaded_bytes_str)s of %(progress._total_bytes_estimate_str)s - [%(progress._speed_str)s] [ETA %(progress._eta_str)s]"')
         
         try:
             if sub_link is not None:
@@ -317,10 +323,13 @@ if __name__ == "__main__":
                             help="Specify media type (movie or tv)")
         parser.add_argument("-nix", "--nix", dest="nix", action="store_true", 
                             help="Create sh instead of bat")
+        parser.add_argument("-newline", "--newline", dest="newline", action="store_true", help="Better Display for API")
+
         args = parser.parse_args()
 
         source_name = args.source_name or questionary.select("Select Source", choices=SUPPORTED_SOURCES).unsafe_ask()
         nix = args.nix or False
+        newline = args.newline or False
 
 
 

@@ -18,6 +18,7 @@ parser.add_argument("-silent", "--silent", dest="silent", action="store_true", h
 parser.add_argument("-dl", "--auto-download", dest="auto_dl", action="store_true", help="Auto Download mode")
 parser.add_argument("-f", "--input-file", dest="input_file", type=str, help="Input file with list of IMDb codes or links")
 parser.add_argument("-nix", "--nix", dest="nix", action="store_true", help="Create sh instead of bat")
+parser.add_argument("-newline", "--newline", dest="newline", action="store_true", help="Better Display for API")
 
 args = parser.parse_args()
 
@@ -109,6 +110,7 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
                     continue
 
                 command = f'python downstream.py -src "{source_name}" -id "{ttid}" -se {season_id} -ep 1 -endep {episode_count} -cid "{cleaned_media_name}" -type "tv"'
+                command += " -newline" if newline else ""
                 command += " -nix\n" if nix else "\n"
 
                 f.write(command)
@@ -123,6 +125,7 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
             if not nix: f.write("@echo off\n")
             
             command = f'python downstream.py -src "{source_name}" -id "{ttid}" -cid "{cleaned_media_name}" -type "movie"'
+            command += " -newline" if newline else ""
             command += " -nix\n" if nix else "\n"
             f.write(command)
 
@@ -151,6 +154,7 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
 
 auto_dl = args.auto_dl if args.auto_dl else False
 nix = args.nix if args.nix else False
+newline = args.newline if args.newline else False
 
 if auto_dl:
     source_name = args.source_name or "Vidplay"

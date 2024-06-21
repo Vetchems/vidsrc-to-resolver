@@ -49,6 +49,7 @@ def run_script(imdb_id, source_name, nix, task_id):
     start_time = time.time()
     command = f'python getimdb.py --media-id {imdb_id} --source {source_name}'
     command += ' --auto-download'
+    command += ' --newline'
     
     if nix:
         command += ' --nix'
