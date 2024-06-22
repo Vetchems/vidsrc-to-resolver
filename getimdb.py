@@ -19,6 +19,9 @@ parser.add_argument("-dl", "--auto-download", dest="auto_dl", action="store_true
 parser.add_argument("-f", "--input-file", dest="input_file", type=str, help="Input file with list of IMDb codes or links")
 parser.add_argument("-nix", "--nix", dest="nix", action="store_true", help="Create sh instead of bat")
 parser.add_argument("-newline", "--newline", dest="newline", action="store_true", help="Better Display for API")
+parser.add_argument("-single", "--single", dest="single", action="store_true", help="Get a single specified episode")
+parser.add_argument("-se", "--season", dest="season", type=str, help="Specify a season for single mode")
+parser.add_argument("-ep", "--episode", dest="episode", type=str, help="Specify an episode for single mode")
 
 args = parser.parse_args()
 
@@ -26,7 +29,7 @@ def remove_bad_filename_characters(filename):
     """
     Removes characters from the filename that are not allowed in Windows filenames.
     """
-    bad_characters = ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
+    bad_characters = ['\\', '/', ':', '*', '?', '"', '<', '>', '|', ',']
     for char in bad_characters:
         filename = filename.replace(char, "")
     return filename
@@ -61,7 +64,7 @@ def extract_imdb_id(link_or_id):
     else:
         raise ValueError(f"Invalid IMDb ID or link: {link_or_id}")
 
-def process_imdb_id(ttid, source_name, auto_dl, silent):
+def process_imdb_id(ttid, source_name, auto_dl, silent, single):
     """
     Process a single IMDb ID to fetch its details and create a batch file.
     """
@@ -87,33 +90,50 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
     print(f"Media type: {media_type}")
 
     if is_series:
-        episodes = json.loads(imdb.get_episodes(ttid))
-        season_count = episodes['season_count']
-        print(f"Total seasons: {season_count}")
 
-        output_name = f"{cleaned_media_name.replace(' ', '.')}_{ttid}_{source_name}_{season_count}_Seasons"
-        output_name += ".sh" if nix else ".bat"
-        # if nix:
-        #     batch_filename = f"{cleaned_media_name.replace(' ', '.')}_{ttid}_{source_name}_{season_count}_Seasons.sh"
-        # else:
-        #     batch_filename = f"{cleaned_media_name.replace(' ', '.')}_{ttid}_{source_name}_{season_count}_Seasons.bat"
+        if single:
+            if not args.season or not args.episode:
+                print("Please specify season and episode for single mode.")
+                return
+            else:
+                output_name = f"{cleaned_media_name.replace(' ', '.')}_{ttid}_{source_name}_S{args.season}_E{args.episode}"
+                output_name += ".sh" if nix else ".bat"
 
-        with open(output_name, "w") as f:
-            if not nix: f.write("@echo off\n")
+                with open(output_name, "w") as f:
+                    if not nix: f.write("@echo off\n")
 
-            for season in episodes['seasons']:
-                season_id = season['id']
-                episode_count = season['episode_count']
-                print(f"Season {season_id} has {episode_count} episodes")
-
-                if season_id == "Unknown":
-                    continue
-
-                command = f'python downstream.py -src "{source_name}" -id "{ttid}" -se {season_id} -ep 1 -endep {episode_count} -cid "{cleaned_media_name}" -type "tv"'
+                command = f'python downstream.py -src "{source_name}" -id "{ttid}" -se {args.season} -ep {args.episode} -endep {args.episode} -cid "{cleaned_media_name}" -type "tv"'
                 command += " -newline" if newline else ""
                 command += " -nix\n" if nix else "\n"
 
                 f.write(command)
+
+        else:
+
+            episodes = json.loads(imdb.get_episodes(ttid))
+            season_count = episodes['season_count']
+            print(f"Total seasons: {season_count}")
+
+            output_name = f"{cleaned_media_name.replace(' ', '.')}_{ttid}_{source_name}_{season_count}_Seasons"
+            output_name += ".sh" if nix else ".bat"
+
+
+            with open(output_name, "w") as f:
+                if not nix: f.write("@echo off\n")
+
+                for season in episodes['seasons']:
+                    season_id = season['id']
+                    episode_count = season['episode_count']
+                    print(f"Season {season_id} has {episode_count} episodes")
+
+                    if season_id == "Unknown":
+                        continue
+
+                    command = f'python downstream.py -src "{source_name}" -id "{ttid}" -se {season_id} -ep 1 -endep {episode_count} -cid "{cleaned_media_name}" -type "tv"'
+                    command += " -newline" if newline else ""
+                    command += " -nix\n" if nix else "\n"
+
+                    f.write(command)
             
 
     else:
@@ -137,7 +157,7 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
         if nix: 
             os.system(f"./{output_name}") 
         else:
-            os.system(f'"{output_name}"')
+            os.system(f"{output_name}")
         return
 
     if not silent:
@@ -155,6 +175,7 @@ def process_imdb_id(ttid, source_name, auto_dl, silent):
 auto_dl = args.auto_dl if args.auto_dl else False
 nix = args.nix if args.nix else False
 newline = args.newline if args.newline else False
+single = args.single if args.single else False
 
 if auto_dl:
     source_name = args.source_name or "Vidplay"
@@ -174,4 +195,4 @@ if args.input_file:
 else:
     ttid = args.media_id if args.media_id else questionary.text("Enter IMDb code: ").unsafe_ask()
     ttid = extract_imdb_id(ttid)
-    process_imdb_id(ttid, source_name, auto_dl, args.silent)
+    process_imdb_id(ttid, source_name, auto_dl, args.silent, single)

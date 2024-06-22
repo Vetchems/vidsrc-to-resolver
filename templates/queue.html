@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Queue Status</title>
+    <title>VetRIP</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -47,21 +47,25 @@
                 const elapsedTime = task.elapsed_time ? formatTime(task.elapsed_time) : 'N/A';
                 const row = document.createElement('tr');
                 const completed_status = task.status ? task.status.match(/(\d+)/) : 'N/A';
-                const timeTaken = formatTime(completed_status[0])
+                const timeTaken = completed_status ? formatTime(completed_status[0]) : 'N/A';
                 const truncatedProgress = task.progress ? truncateString(task.progress) : 'N/A';
 
                 row.innerHTML = `
-                    <td align="Center">${task.id}</td>
-                    <td align="Center">${task.poster ? `<img src="${task.poster}" alt="Poster">` : '<p>No poster available</p>'}</td>
-                    <td align="Center"><a href="https://www.imdb.com/title/${task.imdb_id}" target="_blank">${task.imdb_id}</a></td>
-                    <td align="Center">${task.source}</td>
+                    <td align="center">${task.id}</td>
+                    <td align="center">${task.poster ? `<img src="${task.poster}" alt="Poster">` : '<p>No poster available</p>'}</td>
+                    <td align="center"><a href="https://www.imdb.com/title/${task.imdb_id}" target="_blank">${task.imdb_id}</a></td>
+                    <td align="center">${task.source}</td>
                     ${type === 'running' ? `
                         <td>
-                            <div id="progress-${task.id}">Progress: ${truncatedProgress}</div>
+                            <div id="progress-${task.id}">${truncatedProgress}</div>
                             <div id="elapsed-time-${task.id}">Elapsed Time: ${elapsedTime}</div>
                         </td>
                     ` : type === 'queued' ? `
-                        <td><button onclick="confirmRemoveTask('${task.id}')">Remove</button></td>
+                        <td>
+                            <button onclick="confirmRemoveTask('${task.id}')">Remove</button>
+                            <button onclick="moveTask('${task.id}', 'up')">Up</button>
+                            <button onclick="moveTask('${task.id}', 'down')">Down</button>
+                        </td>
                     ` : `
                         <td>Completed in: ${timeTaken}</td>
                     `}
@@ -72,7 +76,7 @@
 
         // Function to reverse string
         function truncateString(str) {
-            const strRev =  str.split('').reverse().slice(0,300).reverse().join('');
+            const strRev = str.split('').reverse().slice(0, 300).reverse().join('');
             return strRev;
         }
 
@@ -94,6 +98,80 @@
             .then(data => {
                 // alert(data.message);
                 fetchTaskStatus(); // Update the task status after removal
+            });
+        }
+
+        function cancelTask(taskId) {
+            fetch('/cancel-task', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ task_id: taskId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchTaskStatus(); // Update task status after cancellation
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function moveTask(taskId, direction) {
+            fetch('/move-task', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ task_id: taskId, direction: direction })
+            })
+            .then(response => response.json())
+            .then(() => {
+                fetchTaskStatus(); // Update task status after moving
+            });
+        }
+
+        function updateTaskLimit() {
+            const newLimit = document.getElementById('task-limit').value;
+            fetch('/update-task-limit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ task_limit: newLimit })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchTaskStatus(); // Update task status to reflect new limit
+            });
+        }
+
+        function exportQueue() {
+            fetch('/export-queue')
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                });
+        }
+
+        function importQueue() {
+            const fileInput = document.getElementById('queue-file');
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/import-queue', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchTaskStatus(); // Refresh task status after importing queue
+            })
+            .catch(error => {
+                console.error('Error importing queue:', error);
             });
         }
 
@@ -142,17 +220,33 @@
     <h1>Trigger Download</h1>
     <form id="downloadForm">
         <label for="imdb_id">IMDb ID:</label>
-        <input type="text" id="imdb_id" name="imdb_id" required> <button type="submit">Start Download</button> <select id="source_name" name="source_name">
+        <input type="text" id="imdb_id" name="imdb_id" required>
+        <button type="submit">Start Download</button>
+        <select id="source_name" name="source_name">
             <option value="Vidplay">Vidplay</option>
             <option value="Filemoon">Filemoon</option>
-        </select> <label for="nix">Nix Mode:</label> <input type="checkbox" id="nix" name="nix">
-        <br><br>
-        
+        </select>
+        <label for="nix">Nix Mode:</label>
+        <input type="checkbox" id="nix" name="nix">
     </form>
 
     <div id="progress"></div>
 
     <h1>Queue Status</h1>
+
+    <label for="task-limit">Simultaneous Task Limit:</label>
+    <select id="task-limit">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+    </select>
+    <button onclick="updateTaskLimit()">Apply</button>
+    
+    <button onclick="exportQueue()">Export Queue</button>
+    <input type="file" id="queue-file" accept=".json">
+    <button onclick="importQueue()">Import Queue</button>
 
     <h2>Running Tasks</h2>
     <table>

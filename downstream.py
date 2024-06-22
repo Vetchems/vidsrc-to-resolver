@@ -173,7 +173,7 @@ def download_episode(season, episode_number):
         if newline:
             os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4" --newline --progress-template "download:[download] %(progress.filename)s - [%(progress._percent_str)s]  %(progress._downloaded_bytes_str)s of %(progress._total_bytes_estimate_str)s - [%(progress._speed_str)s] [ETA %(progress._eta_str)s]"')
         else:
-            os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4" --progress-template "download:[download] %(progress.filename)s - [%(progress._percent_str)s]  %(progress._downloaded_bytes_str)s of %(progress._total_bytes_estimate_str)s - [%(progress._speed_str)s] [ETA %(progress._eta_str)s]"')
+            os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4"')
 
         try:
             if sub_link is not None:
@@ -255,7 +255,7 @@ def download_movie():
         if newline:
             os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4" --newline --progress-template "download:[download] %(progress.filename)s - [%(progress._percent_str)s]  %(progress._downloaded_bytes_str)s of %(progress._total_bytes_estimate_str)s - [%(progress._speed_str)s] [ETA %(progress._eta_str)s]"')
         else:
-            os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4" --progress-template "download:[download] %(progress.filename)s - [%(progress._percent_str)s]  %(progress._downloaded_bytes_str)s of %(progress._total_bytes_estimate_str)s - [%(progress._speed_str)s] [ETA %(progress._eta_str)s]"')
+            os.system(f'yt-dlp "{stream}" -N 4 -R 20 -o "{filepath}.mp4"')
         
         try:
             if sub_link is not None:

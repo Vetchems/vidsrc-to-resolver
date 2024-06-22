@@ -6,6 +6,8 @@ import time
 from queue import Queue
 from bs4 import BeautifulSoup
 import requests
+import json
+import uuid
 
 app = Flask(__name__)
 CORS(app)
@@ -19,6 +21,7 @@ running_tasks = {}
 task_results = {}
 progress = {}
 poster_links = {}
+processes = {}
 
 def get_poster_link(imdb_id):
     url = f"https://www.imdb.com/title/{imdb_id}/"
@@ -55,6 +58,7 @@ def run_script(imdb_id, source_name, nix, task_id):
         command += ' --nix'
 
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    processes[task_id] = process
 
     for line in iter(process.stdout.readline, b''):
         progress[task_id] = line.decode().strip()
@@ -66,6 +70,7 @@ def run_script(imdb_id, source_name, nix, task_id):
     task_results[task_id] = (progress[task_id], imdb_id, source_name)
 
     running_tasks.pop(task_id, None)
+    processes.pop(task_id, None)
     process_next_task()
 
 def process_next_task():
@@ -184,6 +189,103 @@ def queue_status_api():
         "queued_tasks": queued,
         "completed_tasks": completed
     })
+
+@app.route('/cancel-task', methods=['POST'])
+def cancel_task():
+    data = request.json
+    task_id = data.get('task_id')
+    
+    if task_id in running_tasks:
+        process = processes.pop(task_id, None)
+        if process:
+            process.terminate()
+            running_tasks.pop(task_id, None)
+            progress[task_id] = "Cancelled"
+            task_results[task_id] = ("Cancelled", running_tasks[task_id]['imdb_id'], running_tasks[task_id]['source_name'])
+            return jsonify({"message": "Task cancelled", "task_id": task_id})
+    
+    return jsonify({"message": "Task not found or already completed", "task_id": task_id})
+
+@app.route('/export-queue', methods=['GET'])
+def export_queue():
+    queued_tasks = list(task_queue.queue)
+    task_list = [
+        {
+            "imdb_id": task[1],
+            "source_name": task[2],
+            "nix": task[3]
+        }
+        for task in queued_tasks
+    ]
+    
+    response = {
+        "queued_tasks": task_list
+    }
+
+    with open('queued_tasks.json', 'w') as json_file:
+        json.dump(response, json_file)
+    
+    return jsonify({"message": "Queue exported to queued_tasks.json"})
+
+@app.route('/import-queue', methods=['POST'])
+def import_queue():
+    if 'file' not in request.files:
+        return jsonify({"message": "No file part in the request"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"message": "No selected file"}), 400
+
+    try:
+        file_data = json.load(file)
+        queued_tasks = file_data.get('queued_tasks', [])
+        for task in queued_tasks:
+            imdb_id = task.get("imdb_id")
+            source_name = task.get("source_name")
+            nix = task.get("nix", False)
+
+            if imdb_id and source_name:
+                new_task_id = str(len(progress) + 1)  # Generate a new task ID
+                progress[new_task_id] = "Queued"
+
+                poster_link = get_poster_link(imdb_id)
+                poster_links[new_task_id] = poster_link
+
+                task_queue.put((new_task_id, imdb_id, source_name, nix))
+                process_next_task()
+        return jsonify({"message": "Queue imported successfully"})
+    except json.JSONDecodeError:
+        return jsonify({"message": "Invalid JSON file"}), 400
+    
+@app.route('/update-task-limit', methods=['POST'])
+def update_task_limit():
+    global MAX_SIMULTANEOUS_TASKS
+    data = request.json
+    new_limit = int(data.get('task_limit', MAX_SIMULTANEOUS_TASKS))
+    MAX_SIMULTANEOUS_TASKS = new_limit
+    process_next_task()  # Check if we can start more tasks immediately
+    return jsonify({"message": "Task limit updated", "new_limit": MAX_SIMULTANEOUS_TASKS})
+
+@app.route('/move-task', methods=['POST'])
+def move_task():
+    data = request.json
+    task_id = data.get('task_id')
+    direction = data.get('direction')
+
+    queued_tasks = list(task_queue.queue)
+    task_queue.queue.clear()
+    
+    index = next((i for i, task in enumerate(queued_tasks) if task[0] == task_id), None)
+    if index is not None:
+        if direction == 'up' and index > 0:
+            queued_tasks[index], queued_tasks[index - 1] = queued_tasks[index - 1], queued_tasks[index]
+        elif direction == 'down' and index < len(queued_tasks) - 1:
+            queued_tasks[index], queued_tasks[index + 1] = queued_tasks[index + 1], queued_tasks[index]
+
+    for task in queued_tasks:
+        task_queue.put(task)
+
+    return jsonify({"message": f"Task moved {direction}", "task_id": task_id})
 
 if __name__ == '__main__':
     app.run(debug=True)
