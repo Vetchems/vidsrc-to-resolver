@@ -102,11 +102,11 @@ def process_imdb_id(ttid, source_name, auto_dl, silent, single):
                 with open(output_name, "w") as f:
                     if not nix: f.write("@echo off\n")
 
-                command = f'python downstream.py -src "{source_name}" -id "{ttid}" -se {args.season} -ep {args.episode} -endep {args.episode} -cid "{cleaned_media_name}" -type "tv"'
-                command += " -newline" if newline else ""
-                command += " -nix\n" if nix else "\n"
+                    command = f'python downstream.py -src "{source_name}" -id "{ttid}" -se {args.season} -ep {args.episode} -endep {args.episode} -cid "{cleaned_media_name}" -type "tv"'
+                    command += " -newline" if newline else ""
+                    command += " -nix\n" if nix else "\n"
 
-                f.write(command)
+                    f.write(command)
 
         else:
 

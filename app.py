@@ -48,7 +48,22 @@ def get_poster_link(imdb_id):
         print(f"Error fetching IMDb page for {imdb_id}: {str(e)}")
         return None
 
-def run_script(imdb_id, source_name, nix, task_id):
+def process_next_task():
+    while len(running_tasks) < MAX_SIMULTANEOUS_TASKS and not task_queue.empty():
+        task_id, imdb_id, source_name, nix, single, season, episode = task_queue.get()
+        running_tasks[task_id] = {"start_time": time.time(), "imdb_id": imdb_id, "source_name": source_name}
+
+        poster_link = get_poster_link(imdb_id)
+        poster_links[task_id] = poster_link
+        if poster_link:
+            print(f"Task ID: {task_id}, IMDb ID: {imdb_id}, Poster Link: {poster_link}")
+        else:
+            print(f"Failed to get poster link for IMDb ID: {imdb_id}")
+
+        thread = threading.Thread(target=run_script, args=(imdb_id, source_name, nix, task_id, single, season, episode))
+        thread.start()
+
+def run_script(imdb_id, source_name, nix, task_id, single, season, episode):
     start_time = time.time()
     command = f'python getimdb.py --media-id {imdb_id} --source {source_name}'
     command += ' --auto-download'
@@ -56,6 +71,9 @@ def run_script(imdb_id, source_name, nix, task_id):
     
     if nix:
         command += ' --nix'
+    
+    if single and season and episode:
+        command += f' --single --season {season} --episode {episode}'
 
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     processes[task_id] = process
@@ -73,20 +91,6 @@ def run_script(imdb_id, source_name, nix, task_id):
     processes.pop(task_id, None)
     process_next_task()
 
-def process_next_task():
-    while len(running_tasks) < MAX_SIMULTANEOUS_TASKS and not task_queue.empty():
-        task_id, imdb_id, source_name, nix = task_queue.get()
-        running_tasks[task_id] = {"start_time": time.time(), "imdb_id": imdb_id, "source_name": source_name}
-
-        poster_link = get_poster_link(imdb_id)
-        poster_links[task_id] = poster_link
-        if poster_link:
-            print(f"Task ID: {task_id}, IMDb ID: {imdb_id}, Poster Link: {poster_link}")
-        else:
-            print(f"Failed to get poster link for IMDb ID: {imdb_id}")
-
-        thread = threading.Thread(target=run_script, args=(imdb_id, source_name, nix, task_id))
-        thread.start()
 
 @app.route('/index')
 def index():
@@ -105,8 +109,16 @@ def start_download():
     auto_dl = True
     nix = data.get('nix', False)
     silent = data.get('silent', False)
+    single = data.get('single', False)
+    season = data.get('season', None)
+    episode = data.get('episode', None)
 
-    task_id = str(len(progress) + 1)
+    # Modify task_id if in single mode
+    if single and season and episode:
+        task_id = f"{len(progress) + 1}-S{season}E{episode}"
+    else:
+        task_id = str(len(progress) + 1)
+        
     progress[task_id] = "Queued"
 
     poster_link = get_poster_link(imdb_id)
@@ -116,7 +128,7 @@ def start_download():
     else:
         print(f"[START DOWNLOAD] Failed to get poster link for IMDb ID: {imdb_id}")
 
-    task_queue.put((task_id, imdb_id, source_name, nix))
+    task_queue.put((task_id, imdb_id, source_name, nix, single, season, episode))
 
     process_next_task()
 
@@ -209,14 +221,36 @@ def cancel_task():
 @app.route('/export-queue', methods=['GET'])
 def export_queue():
     queued_tasks = list(task_queue.queue)
-    task_list = [
-        {
-            "imdb_id": task[1],
-            "source_name": task[2],
-            "nix": task[3]
+    task_list = []
+    
+    for task in queued_tasks:
+        task_id = task[0]
+        imdb_id = task[1]
+        source_name = task[2]
+        nix = task[3]
+        
+        task_dict = {
+            "imdb_id": imdb_id,
+            "source_name": source_name,
+            "nix": nix
         }
-        for task in queued_tasks
-    ]
+        
+        if '-' in task_id and 'S' in task_id and 'E' in task_id:
+            parts = task_id.split('-')
+            if len(parts) == 2:
+                show_part, episode_part = parts
+                if show_part.isdigit() and 'S' in episode_part and 'E' in episode_part:
+                    season_episode = episode_part.split('S')
+                    if len(season_episode) == 2:
+                        season, episode = season_episode[1].split('E')
+                        if season.isdigit() and episode.isdigit():
+                            task_dict.update({
+                                "season": int(season),
+                                "episode": int(episode),
+                                "single": True
+                            })
+        
+        task_list.append(task_dict)
     
     response = {
         "queued_tasks": task_list
@@ -226,6 +260,8 @@ def export_queue():
         json.dump(response, json_file)
     
     return jsonify({"message": "Queue exported to queued_tasks.json"})
+
+
 
 @app.route('/import-queue', methods=['POST'])
 def import_queue():
@@ -243,19 +279,29 @@ def import_queue():
             imdb_id = task.get("imdb_id")
             source_name = task.get("source_name")
             nix = task.get("nix", False)
+            season = task.get("season")
+            episode = task.get("episode")
+            single = task.get("single", False)
 
             if imdb_id and source_name:
                 new_task_id = str(len(progress) + 1)  # Generate a new task ID
+                
+                if single and season is not None and episode is not None:
+                    new_task_id = f"{new_task_id}-S{season}E{episode}"
+
                 progress[new_task_id] = "Queued"
 
                 poster_link = get_poster_link(imdb_id)
                 poster_links[new_task_id] = poster_link
 
-                task_queue.put((new_task_id, imdb_id, source_name, nix))
+                task_queue.put((new_task_id, imdb_id, source_name, nix, single, season, episode))
                 process_next_task()
+                
         return jsonify({"message": "Queue imported successfully"})
     except json.JSONDecodeError:
         return jsonify({"message": "Invalid JSON file"}), 400
+    
+
     
 @app.route('/update-task-limit', methods=['POST'])
 def update_task_limit():

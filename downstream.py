@@ -14,7 +14,7 @@ from sources.vidplay import VidplayExtractor
 from sources.filemoon import FilemoonExtractor
 from utils import Utilities, VidSrcError, NoSourcesFound
 
-SUPPORTED_SOURCES = ["Vidplay", "Filemoon"]
+SUPPORTED_SOURCES = ["F2Cloud", "Vidplay", "Filemoon"]
 
 class VidSrcExtractor:
     BASE_URL = "https://vidsrc.to"
@@ -92,7 +92,7 @@ class VidSrcExtractor:
 
             source_url = self.get_source_url(source)
 
-            if self.source_name == "Vidplay":
+            if self.source_name == "Vidplay" or self.source_name == "F2Cloud":
                 print(f"[>] Fetching source for \"{self.source_name}\"...")
 
                 extractor = VidplayExtractor()
@@ -328,6 +328,10 @@ if __name__ == "__main__":
         args = parser.parse_args()
 
         source_name = args.source_name or questionary.select("Select Source", choices=SUPPORTED_SOURCES).unsafe_ask()
+
+        if source_name == "Vidplay":
+            source_name = "F2Cloud"
+            
         nix = args.nix or False
         newline = args.newline or False
 

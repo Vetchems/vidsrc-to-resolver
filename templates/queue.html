@@ -189,45 +189,57 @@
         document.addEventListener('DOMContentLoaded', init);
 
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('downloadForm').addEventListener('submit', function(event) {
+            document.getElementById('start-download-form').addEventListener('submit', function(event) {
                 event.preventDefault();
-
-                const formData = new FormData(this);
-                const data = {};
-                formData.forEach((value, key) => {
-                    data[key] = key === 'nix' ? value === 'on' : value;
-                });
+                
+                const imdbId = document.getElementById('imdb-id').value;
+                const sourceName = document.getElementById('source-name').value;
+                const nix = document.getElementById('nix').checked;
+                const single = document.getElementById('single').checked;
+                const season = document.getElementById('season').value;
+                const episode = document.getElementById('episode').value;
 
                 fetch('/start-download', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({ imdb_id: imdbId, source_name: sourceName, nix: nix, single: single, season: season, episode: episode })
                 })
                 .then(response => response.json())
-                .then(() => {
-                    fetchTaskStatus(); // Refresh task status to reflect new task
+                .then(data => {
+                    // alert(`Task started with ID: ${data.task_id}`);
+                    fetchTaskStatus(); // Update the task status after starting download
                 })
-                .catch(error => {
-                    console.error('Error starting download:', error);
-                });
+                .catch(error => console.error('Error starting download:', error));
             });
         });
     </script>
 </head>
 <body>
     <h1>Trigger Download</h1>
-    <form id="downloadForm">
-        <label for="imdb_id">IMDb ID:</label>
-        <input type="text" id="imdb_id" name="imdb_id" required>
-        <button type="submit">Start Download</button>
-        <select id="source_name" name="source_name">
+    <form id="start-download-form">
+        <label for="imdb-id">IMDb ID:</label>
+        <input type="text" id="imdb-id" name="imdb_id" required>
+        <button type="submit">Start Download</button> 
+        <!-- <label for="source-name">Source Name:</label> -->
+        <select id="source-name" name="source_name">
             <option value="Vidplay">Vidplay</option>
             <option value="Filemoon">Filemoon</option>
         </select>
-        <label for="nix">Nix Mode:</label>
-        <input type="checkbox" id="nix" name="nix">
+        
+         [<label for="nix">Nix:</label>
+        <input type="checkbox" id="nix" name="nix"> ]
+        <br><br>
+        <label for="single">Single Mode:</label>
+        <input type="checkbox" id="single" name="single"> 
+        
+        [<label for="season">Season:</label>
+        <input type="text" id="season" name="season" size="5" >
+        
+        <label for="episode">Episode:</label>
+        <input type="text" id="episode" name="episode" size="5">]
+    
     </form>
 
     <div id="progress"></div>
