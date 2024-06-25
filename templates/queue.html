@@ -103,22 +103,6 @@
             });
         }
 
-        function cancelTask(taskId) {
-            fetch('/cancel-task', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ task_id: taskId })
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.message);
-                fetchTaskStatus(); // Update task status after cancellation
-            })
-            .catch(error => console.error('Error:', error));
-        }
-
         function skipCurrentFile(imdbId) {
             fetch('/skip-current-file', {
                 method: 'POST',
@@ -249,7 +233,7 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    alert(data.message);
+                    // alert(data.message);
                     fetchTaskStatus(); // Update task status after starting download
                 });
             });
