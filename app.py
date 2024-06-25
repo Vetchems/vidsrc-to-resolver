@@ -7,7 +7,10 @@ from queue import Queue
 from bs4 import BeautifulSoup
 import requests
 import json
-import uuid
+import os
+import platform
+import subprocess
+import psutil
 
 app = Flask(__name__)
 CORS(app)
@@ -22,6 +25,64 @@ task_results = {}
 progress = {}
 poster_links = {}
 processes = {}
+
+
+
+
+
+def is_windows():
+    return platform.system().lower() == 'windows'
+
+def skip_current_file(imdb_id):
+    if is_windows():
+        kill_process_windows('yt-dlp.exe', imdb_id)
+    else:
+        kill_process_unix('yt-dlp', imdb_id)
+
+def cancel_job(imdb_id):
+    if is_windows():
+        kill_all_processes_windows(imdb_id)
+    else:
+        kill_all_processes_unix(imdb_id)
+
+def kill_process_windows(process_name, imdb_id):
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            if proc.info['name'].lower() == process_name.lower() and imdb_id in ' '.join(proc.info['cmdline']):
+                proc.terminate()
+                print(f"Killed process {proc.info['name']} with PID {proc.info['pid']} containing IMDb ID {imdb_id}")
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+def kill_all_processes_windows(imdb_id):
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            cmdline = proc.info['cmdline']
+            if cmdline and isinstance(cmdline, list) and imdb_id in ' '.join(cmdline):
+                proc.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+def kill_process_unix(process_name, imdb_id):
+    try:
+        output = subprocess.check_output(['pgrep', '-fl', process_name]).decode()
+        for line in output.splitlines():
+            if imdb_id in line:
+                pid = int(line.split()[0])
+                subprocess.call(['kill', '-9', str(pid)])
+                print(f"Killed process {process_name} with PID {pid} containing IMDb ID {imdb_id}")
+    except subprocess.CalledProcessError:
+        print(f"No process named {process_name} with IMDb ID {imdb_id} found.")
+
+def kill_all_processes_unix(imdb_id):
+    try:
+        output = subprocess.check_output(['pgrep', '-fl', imdb_id]).decode()
+        for line in output.splitlines():
+            pid = int(line.split()[0])
+            subprocess.call(['kill', '-9', str(pid)])
+            print(f"Killed process with PID {pid} containing IMDb ID {imdb_id}")
+    except subprocess.CalledProcessError:
+        print(f"No processes with IMDb ID {imdb_id} found.")
 
 def get_poster_link(imdb_id):
     url = f"https://www.imdb.com/title/{imdb_id}/"
@@ -296,7 +357,7 @@ def import_queue():
 
                 task_queue.put((new_task_id, imdb_id, source_name, nix, single, season, episode))
                 process_next_task()
-                
+
         return jsonify({"message": "Queue imported successfully"})
     except json.JSONDecodeError:
         return jsonify({"message": "Invalid JSON file"}), 400
@@ -332,6 +393,27 @@ def move_task():
         task_queue.put(task)
 
     return jsonify({"message": f"Task moved {direction}", "task_id": task_id})
+
+@app.route('/skip-current-file', methods=['POST'])
+def skip_current_file_api():
+    data = request.json
+    imdb_id = data.get('imdb_id')
+    if imdb_id:
+        skip_current_file(imdb_id)
+        return jsonify({"message": "Current file skipped", "imdb_id": imdb_id})
+    else:
+        return jsonify({"message": "Invalid IMDb ID"}), 400
+
+@app.route('/cancel-job', methods=['POST'])
+def cancel_job_api():
+    data = request.json
+    imdb_id = data.get('imdb_id')
+    if imdb_id:
+        cancel_job(imdb_id)
+        return jsonify({"message": "Job cancelled", "imdb_id": imdb_id})
+    else:
+        return jsonify({"message": "Invalid IMDb ID"}), 400
+    
 
 if __name__ == '__main__':
     app.run(debug=True)

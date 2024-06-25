@@ -59,6 +59,8 @@
                         <td>
                             <div id="progress-${task.id}">${truncatedProgress}</div>
                             <div id="elapsed-time-${task.id}">Elapsed Time: ${elapsedTime}</div>
+                            <button onclick="skipCurrentFile('${task.imdb_id}')">Skip File</button>
+                            <button onclick="cancelJob('${task.imdb_id}')">Cancel Job</button>
                         </td>
                     ` : type === 'queued' ? `
                         <td>
@@ -113,6 +115,38 @@
             .then(data => {
                 alert(data.message);
                 fetchTaskStatus(); // Update task status after cancellation
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function skipCurrentFile(imdbId) {
+            fetch('/skip-current-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ imdb_id: imdbId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchTaskStatus(); // Update task status after skipping current file
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function cancelJob(imdbId) {
+            fetch('/cancel-job', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ imdb_id: imdbId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchTaskStatus(); // Update task status after canceling job
             })
             .catch(error => console.error('Error:', error));
         }
@@ -204,14 +238,20 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ imdb_id: imdbId, source_name: sourceName, nix: nix, single: single, season: season, episode: episode })
+                    body: JSON.stringify({
+                        imdb_id: imdbId,
+                        source_name: sourceName,
+                        nix: nix,
+                        single: single,
+                        season: season,
+                        episode: episode
+                    })
                 })
                 .then(response => response.json())
                 .then(data => {
-                    // alert(`Task started with ID: ${data.task_id}`);
-                    fetchTaskStatus(); // Update the task status after starting download
-                })
-                .catch(error => console.error('Error starting download:', error));
+                    alert(data.message);
+                    fetchTaskStatus(); // Update task status after starting download
+                });
             });
         });
     </script>
@@ -248,6 +288,7 @@
 
     <label for="task-limit">Simultaneous Task Limit:</label>
     <select id="task-limit">
+        <option value="0">0</option>
         <option value="1">1</option>
         <option value="2">2</option>
         <option value="3">3</option>
